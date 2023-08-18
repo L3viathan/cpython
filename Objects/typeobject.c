@@ -6564,6 +6564,19 @@ static PyMethodDef object_methods[] = {
     {0}
 };
 
+static PyObject *
+object_matmul(PyObject *self, PyObject *other)
+{
+    if (PyCallable_Check(other)) {
+        return PyObject_CallOneArg(other, self);
+    }
+    Py_RETURN_NOTIMPLEMENTED;
+}
+
+static PyNumberMethods object_as_number = {
+    .nb_matrix_multiply = object_matmul
+};
+
 PyDoc_STRVAR(object_doc,
 "object()\n--\n\n"
 "The base class of the class hierarchy.\n\n"
@@ -6581,7 +6594,7 @@ PyTypeObject PyBaseObject_Type = {
     0,                                          /* tp_setattr */
     0,                                          /* tp_as_async */
     object_repr,                                /* tp_repr */
-    0,                                          /* tp_as_number */
+    &object_as_number,                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
     (hashfunc)_Py_HashPointer,                  /* tp_hash */
@@ -6847,7 +6860,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
     if (type->tp_as_number != NULL && base->tp_as_number != NULL) {
         basebase = base->tp_base;
-        if (basebase->tp_as_number == NULL)
+        if (basebase && basebase->tp_as_number == NULL)
             basebase = NULL;
         COPYNUM(nb_add);
         COPYNUM(nb_subtract);
@@ -6888,7 +6901,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
     if (type->tp_as_async != NULL && base->tp_as_async != NULL) {
         basebase = base->tp_base;
-        if (basebase->tp_as_async == NULL)
+        if (basebase && basebase->tp_as_async == NULL)
             basebase = NULL;
         COPYASYNC(am_await);
         COPYASYNC(am_aiter);
@@ -6897,7 +6910,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
     if (type->tp_as_sequence != NULL && base->tp_as_sequence != NULL) {
         basebase = base->tp_base;
-        if (basebase->tp_as_sequence == NULL)
+        if (basebase && basebase->tp_as_sequence == NULL)
             basebase = NULL;
         COPYSEQ(sq_length);
         COPYSEQ(sq_concat);
@@ -6911,7 +6924,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
     if (type->tp_as_mapping != NULL && base->tp_as_mapping != NULL) {
         basebase = base->tp_base;
-        if (basebase->tp_as_mapping == NULL)
+        if (basebase && basebase->tp_as_mapping == NULL)
             basebase = NULL;
         COPYMAP(mp_length);
         COPYMAP(mp_subscript);
@@ -6920,7 +6933,7 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
     if (type->tp_as_buffer != NULL && base->tp_as_buffer != NULL) {
         basebase = base->tp_base;
-        if (basebase->tp_as_buffer == NULL)
+        if (basebase && basebase->tp_as_buffer == NULL)
             basebase = NULL;
         COPYBUF(bf_getbuffer);
         COPYBUF(bf_releasebuffer);

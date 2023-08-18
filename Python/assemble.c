@@ -462,6 +462,21 @@ dict_keys_inorder(PyObject *dict, Py_ssize_t offset)
     return tuple;
 }
 
+static PyObject *
+dict_keys_sameorder(PyObject *dict)
+{
+    PyObject *tuple, *k, *v;
+    Py_ssize_t i = 0, pos = 0;
+
+    tuple = PyTuple_New(PyDict_GET_SIZE(dict));
+    if (tuple == NULL)
+        return NULL;
+    while (PyDict_Next(dict, &pos, &k, &v)) {
+        PyTuple_SET_ITEM(tuple, i++, Py_NewRef(k));
+    }
+    return tuple;
+}
+
 // This is in codeobject.c.
 extern void _Py_set_localsplus_info(int, PyObject *, unsigned char,
                                    PyObject *, PyObject *);
@@ -521,11 +536,16 @@ makecode(_PyCompile_CodeUnitMetadata *umd, struct assembler *a, PyObject *const_
 {
     PyCodeObject *co = NULL;
     PyObject *names = NULL;
+    PyObject *labelnames = NULL;
     PyObject *consts = NULL;
     PyObject *localsplusnames = NULL;
     PyObject *localspluskinds = NULL;
     names = dict_keys_inorder(umd->u_names, 0);
     if (!names) {
+        goto error;
+    }
+    labelnames = dict_keys_sameorder(umd->u_labelnames);
+    if (!labelnames) {
         goto error;
     }
     if (_PyCompile_ConstCacheMergeOne(const_cache, &names) < 0) {
@@ -570,6 +590,7 @@ makecode(_PyCompile_CodeUnitMetadata *umd, struct assembler *a, PyObject *const_
 
         .consts = consts,
         .names = names,
+        .labelnames = labelnames,
 
         .localsplusnames = localsplusnames,
         .localspluskinds = localspluskinds,
@@ -599,6 +620,7 @@ makecode(_PyCompile_CodeUnitMetadata *umd, struct assembler *a, PyObject *const_
 
 error:
     Py_XDECREF(names);
+    Py_XDECREF(labelnames);
     Py_XDECREF(consts);
     Py_XDECREF(localsplusnames);
     Py_XDECREF(localspluskinds);

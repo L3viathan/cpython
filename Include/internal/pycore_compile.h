@@ -69,6 +69,7 @@ typedef struct {
     */
     PyObject *u_consts;    /* all constants */
     PyObject *u_names;     /* all names */
+    PyObject *u_labelnames; /* all label names */
     PyObject *u_varnames;  /* local variables */
     PyObject *u_cellvars;  /* cell variables */
     PyObject *u_freevars;  /* free variables */

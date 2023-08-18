@@ -850,6 +850,7 @@ _PyStaticObjects_CheckRefcnt(PyInterpreterState *interp) {
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_flags));
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_freevars));
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_kwonlyargcount));
+    _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_labelnames));
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_linetable));
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_name));
     _PyStaticObject_CheckRefcnt((PyObject *)&_Py_ID(co_names));

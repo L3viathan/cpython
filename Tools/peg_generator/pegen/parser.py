@@ -238,6 +238,17 @@ class Parser:
                 return self._tokenizer.getnext()
         if tok.type == token.OP and tok.string == type:
             return self._tokenizer.getnext()
+        if (type == "++" or type == "--") and tok.string == type[0]:
+            mark = self._tokenizer.mark()
+            tok = self._tokenizer.getnext()
+            tok2 = self._tokenizer.peek()
+            if (tok2.string == type[0]
+                    and tok2.start[0] == tok.end[0]
+                    and tok2.start[1] == tok.end[1]):
+                self._tokenizer._index += 1
+                return tokenize.TokenInfo(tokenize.OP, type,
+                                          tok.start, tok2.end, tok.line)
+            self._tokenizer.reset(mark)
         return None
 
     def expect_forced(self, res: Any, expectation: str) -> Optional[tokenize.TokenInfo]:

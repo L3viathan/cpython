@@ -176,6 +176,7 @@ struct _PyCodeConstructor {
     /* used by the code */
     PyObject *consts;
     PyObject *names;
+    PyObject *labelnames;
 
     /* mapping frame offsets to information */
     PyObject *localsplusnames;  // Tuple of strings

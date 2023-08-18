@@ -50,6 +50,8 @@ module Python
 
           | Global(identifier* names)
           | Nonlocal(identifier* names)
+          | Label(identifier* names)
+          | Goto(identifier name)
           | Expr(expr value)
           | Pass | Break | Continue
 
@@ -61,6 +63,7 @@ module Python
          | NamedExpr(expr target, expr value)
          | BinOp(expr left, operator op, expr right)
          | UnaryOp(unaryop op, expr operand)
+         | Composition(expr arg, expr func)
          | Lambda(arguments args, expr body)
          | IfExp(expr test, expr body, expr orelse)
          | Dict(expr* keys, expr* values)
@@ -80,6 +83,7 @@ module Python
          | FormattedValue(expr value, int conversion, expr? format_spec)
          | JoinedStr(expr* values)
          | Constant(constant value, string? kind)
+         | Template()
 
          -- the following expression can appear in assignment context
          | Attribute(expr value, identifier attr, expr_context ctx)
@@ -105,6 +109,7 @@ module Python
     unaryop = Invert | Not | UAdd | USub
 
     cmpop = Eq | NotEq | Lt | LtE | Gt | GtE | Is | IsNot | In | NotIn
+                | IsIn | IsNotIn
 
     comprehension = (expr target, expr iter, expr* ifs, int is_async)
 

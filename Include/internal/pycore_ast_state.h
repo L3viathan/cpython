@@ -40,6 +40,7 @@ struct ast_state {
     PyObject *Call_type;
     PyObject *ClassDef_type;
     PyObject *Compare_type;
+    PyObject *Composition_type;
     PyObject *Constant_type;
     PyObject *Continue_type;
     PyObject *Del_singleton;
@@ -62,6 +63,7 @@ struct ast_state {
     PyObject *FunctionType_type;
     PyObject *GeneratorExp_type;
     PyObject *Global_type;
+    PyObject *Goto_type;
     PyObject *GtE_singleton;
     PyObject *GtE_type;
     PyObject *Gt_singleton;
@@ -75,6 +77,10 @@ struct ast_state {
     PyObject *Interactive_type;
     PyObject *Invert_singleton;
     PyObject *Invert_type;
+    PyObject *IsIn_singleton;
+    PyObject *IsIn_type;
+    PyObject *IsNotIn_singleton;
+    PyObject *IsNotIn_type;
     PyObject *IsNot_singleton;
     PyObject *IsNot_type;
     PyObject *Is_singleton;
@@ -82,6 +88,7 @@ struct ast_state {
     PyObject *JoinedStr_type;
     PyObject *LShift_singleton;
     PyObject *LShift_type;
+    PyObject *Label_type;
     PyObject *Lambda_type;
     PyObject *ListComp_type;
     PyObject *List_type;
@@ -135,6 +142,7 @@ struct ast_state {
     PyObject *Sub_singleton;
     PyObject *Sub_type;
     PyObject *Subscript_type;
+    PyObject *Template_type;
     PyObject *TryStar_type;
     PyObject *Try_type;
     PyObject *Tuple_type;

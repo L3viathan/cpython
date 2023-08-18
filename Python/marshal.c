@@ -40,6 +40,8 @@ module marshal
 #define MAX_MARSHAL_STACK_DEPTH 2000
 #endif
 
+#define USE_LABELNAMES 0
+
 #define TYPE_NULL               '0'
 #define TYPE_NONE               'N'
 #define TYPE_FALSE              'F'
@@ -564,6 +566,9 @@ w_complex_object(PyObject *v, char flag, WFILE *p)
         w_object(co_code, p);
         w_object(co->co_consts, p);
         w_object(co->co_names, p);
+#if USE_LABELNAMES
+        w_object(co->co_labelnames, p);
+#endif
         w_object(co->co_localsplusnames, p);
         w_object(co->co_localspluskinds, p);
         w_object(co->co_filename, p);
@@ -1355,6 +1360,9 @@ r_object(RFILE *p)
             PyObject *code = NULL;
             PyObject *consts = NULL;
             PyObject *names = NULL;
+#if USE_LABELNAMES
+            PyObject *labelnames = NULL;
+#endif
             PyObject *localsplusnames = NULL;
             PyObject *localspluskinds = NULL;
             PyObject *filename = NULL;
@@ -1396,6 +1404,11 @@ r_object(RFILE *p)
             names = r_object(p);
             if (names == NULL)
                 goto code_error;
+#if USE_LABELNAMES
+            labelnames = r_object(p);
+            if (labelnames == NULL)
+                goto code_error;
+#endif
             localsplusnames = r_object(p);
             if (localsplusnames == NULL)
                 goto code_error;
@@ -1433,6 +1446,11 @@ r_object(RFILE *p)
 
                 .consts = consts,
                 .names = names,
+#if USE_LABELNAMES
+                .labelnames = labelnames,
+#else
+                .labelnames = PyTuple_New(0),
+#endif
 
                 .localsplusnames = localsplusnames,
                 .localspluskinds = localspluskinds,
@@ -1465,6 +1483,9 @@ r_object(RFILE *p)
             Py_XDECREF(code);
             Py_XDECREF(consts);
             Py_XDECREF(names);
+#if USE_LABELNAMES
+            Py_XDECREF(labelnames);
+#endif
             Py_XDECREF(localsplusnames);
             Py_XDECREF(localspluskinds);
             Py_XDECREF(filename);

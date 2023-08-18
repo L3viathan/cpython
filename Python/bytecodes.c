@@ -2140,6 +2140,38 @@ dummy_func(
             b = (res ^ oparg) ? Py_True : Py_False;
         }
 
+        inst(IS_CONTAINS_OP, (left, right -- b)) {
+            PyObject *next;
+            PyObject *iter = PyObject_GetIter(right);
+            if (iter == NULL) {
+                DECREF_INPUTS();
+                ERROR_IF(true, error);
+            }
+            int res = 0;
+            iternextfunc f = Py_TYPE(iter)->tp_iternext;
+            while (!res) {
+                next = (*f)(iter);
+                if (next == NULL) {
+                    if (_PyErr_Occurred(tstate)) {
+                        if (!_PyErr_ExceptionMatches(tstate, PyExc_StopIteration)) {
+                            goto error;
+                        }
+                        monitor_raise(tstate, frame, next_instr-1);
+                        _PyErr_Clear(tstate);
+                    }
+                    /* iterator ended normally */
+                    Py_DECREF(iter);
+                    break;
+                }
+                else {
+                    res = Py_Is(left, next);
+                    Py_DECREF(next);
+                }
+            }
+            DECREF_INPUTS();
+            b = (res ^ oparg) ? Py_True : Py_False;
+        }
+
         inst(CHECK_EG_MATCH, (exc_value, match_type -- rest, match)) {
             if (_PyEval_CheckExceptStarTypeValid(tstate, match_type) < 0) {
                 DECREF_INPUTS();
@@ -3499,6 +3531,14 @@ dummy_func(
             ERROR_IF(result == NULL, error);
             CHECK_EVAL_BREAKER();
         }
+
+        pseudo(PIPEARG_MARKER) = {
+            NOP,
+        };
+
+        pseudo(PIPEARG_ENDMARKER) = {
+            NOP,
+        };
 
         inst(MAKE_FUNCTION, (codeobj -- func)) {
 

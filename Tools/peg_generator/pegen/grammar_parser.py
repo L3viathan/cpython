@@ -575,7 +575,7 @@ class GeneratedParser(Parser):
 
     @memoize
     def target_atom(self) -> Optional[str]:
-        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | NAME "*" | NAME | NUMBER | STRING | "?" | ":" | !"}" !"]" OP
+        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | NAME "*" | NAME | NUMBER | STRING | "?" | ":" | "++" | !"}" !"]" OP
         mark = self._mark()
         cut = False
         if (
@@ -634,6 +634,11 @@ class GeneratedParser(Parser):
             (literal := self.expect(":"))
         ):
             return ":"
+        self._reset(mark)
+        if (
+            (literal := self.expect("++"))
+        ):
+            return "++"
         self._reset(mark)
         if (
             self.negative_lookahead(self.expect, "}")

@@ -1762,6 +1762,8 @@ symtable_visit_stmt(struct symtable *st, stmt_ty s)
     case Pass_kind:
     case Break_kind:
     case Continue_kind:
+    case Goto_kind:
+    case Label_kind:
         /* nothing to do here */
         break;
     case With_kind:
@@ -2097,6 +2099,12 @@ symtable_visit_expr(struct symtable *st, expr_ty e)
         break;
     case Tuple_kind:
         VISIT_SEQ(st, expr, e->v.Tuple.elts);
+        break;
+    case Composition_kind:
+        VISIT(st, expr, e->v.Composition.arg);
+        VISIT(st, expr, e->v.Composition.func);
+        break;
+    case Template_kind:
         break;
     }
     VISIT_QUIT(st, 1);

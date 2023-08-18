@@ -125,9 +125,11 @@ simple_stmt[stmt_ty] (memo):
     | 'continue' { _PyAST_Continue(EXTRA) }
     | &'global' global_stmt
     | &'nonlocal' nonlocal_stmt
+    | &'goto' goto_stmt
+    | &'label' label_stmt
 
 compound_stmt[stmt_ty]:
-    | &('def' | '@' | 'async') function_def
+    | &("def" | '@' | 'async') function_def
     | &'if' if_stmt
     | &('class' | '@') class_def
     | &('with' | 'async') with_stmt
@@ -194,6 +196,11 @@ del_stmt[stmt_ty]:
 yield_stmt[stmt_ty]: y=yield_expr { _PyAST_Expr(y, EXTRA) }
 
 assert_stmt[stmt_ty]: 'assert' a=expression b=[',' z=expression { z }] { _PyAST_Assert(a, b, EXTRA) }
+
+goto_stmt[stmt_ty]: 'goto' a=NAME { _PyAST_Goto(a->v.Name.id, EXTRA) }
+
+label_stmt[stmt_ty]: 'label' a[asdl_expr_seq*]=','.NAME+ {
+    _PyAST_Label(CHECK(asdl_identifier_seq*, _PyPegen_map_names_to_ids(p, a)), EXTRA) }
 
 import_stmt[stmt_ty]:
     | invalid_import
@@ -268,11 +275,11 @@ function_def[stmt_ty]:
 
 function_def_raw[stmt_ty]:
     | invalid_def_raw
-    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+    | "def" n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
         _PyAST_FunctionDef(n->v.Name.id,
                         (params) ? params : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
                         b, NULL, a, NEW_TYPE_COMMENT(p, tc), t, EXTRA) }
-    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+    | 'async' "def" n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
         CHECK_VERSION(
             stmt_ty,
             5,
@@ -699,9 +706,9 @@ star_named_expression[expr_ty]:
     | named_expression
 
 assignment_expression[expr_ty]:
-    | a=NAME ':=' ~ b=expression {
+    | a=star_target ':=' ~ b=expression {
         CHECK_VERSION(expr_ty, 8, "Assignment expressions are",
-        _PyAST_NamedExpr(CHECK(expr_ty, _PyPegen_set_expr_context(p, a, Store)), b, EXTRA)) }
+        _PyAST_NamedExpr(a, b, EXTRA)) }
 
 named_expression[expr_ty]:
     | assignment_expression
@@ -730,37 +737,46 @@ inversion[expr_ty] (memo):
 # --------------------
 
 comparison[expr_ty]:
-    | a=bitwise_or b=compare_op_bitwise_or_pair+ {
+    | a=composition b=compare_op_composition_pair+ {
         _PyAST_Compare(
             a,
             CHECK(asdl_int_seq*, _PyPegen_get_cmpops(p, b)),
             CHECK(asdl_expr_seq*, _PyPegen_get_exprs(p, b)),
             EXTRA) }
+    | composition
+
+compare_op_composition_pair[CmpopExprPair*]:
+    | eq_composition
+    | noteq_composition
+    | lte_composition
+    | lt_composition
+    | gte_composition
+    | gt_composition
+    | notin_composition
+    | in_composition
+    | isnotin_composition
+    | isin_composition
+    | isnot_composition
+    | is_composition
+
+eq_composition[CmpopExprPair*]: '==' a=composition { _PyPegen_cmpop_expr_pair(p, Eq, a) }
+noteq_composition[CmpopExprPair*]:
+    | (tok='!=' { _PyPegen_check_barry_as_flufl(p, tok) ? NULL : tok}) a=composition {_PyPegen_cmpop_expr_pair(p, NotEq, a) }
+lte_composition[CmpopExprPair*]: '<=' a=composition { _PyPegen_cmpop_expr_pair(p, LtE, a) }
+lt_composition[CmpopExprPair*]: '<' a=composition { _PyPegen_cmpop_expr_pair(p, Lt, a) }
+gte_composition[CmpopExprPair*]: '>=' a=composition { _PyPegen_cmpop_expr_pair(p, GtE, a) }
+gt_composition[CmpopExprPair*]: '>' a=composition { _PyPegen_cmpop_expr_pair(p, Gt, a) }
+notin_composition[CmpopExprPair*]: 'not' 'in' a=composition { _PyPegen_cmpop_expr_pair(p, NotIn, a) }
+in_composition[CmpopExprPair*]: 'in' a=composition { _PyPegen_cmpop_expr_pair(p, In, a) }
+isnotin_composition[CmpopExprPair*]: 'is' 'not' 'in' a=composition { _PyPegen_cmpop_expr_pair(p, IsNotIn, a) }
+isin_composition[CmpopExprPair*]: 'is' 'in' a=composition { _PyPegen_cmpop_expr_pair(p, IsIn, a) }
+isnot_composition[CmpopExprPair*]: 'is' 'not' a=composition { _PyPegen_cmpop_expr_pair(p, IsNot, a) }
+is_composition[CmpopExprPair*]: 'is' a=composition { _PyPegen_cmpop_expr_pair(p, Is, a) }
+
+composition[expr_ty]:
+    | a=composition t=(t='|>' { (++p->subn, t) }) b=(c=bitwise_or? { (--p->subn, c) }) {
+        _PyAST_Composition(a, b, EXTRA) }
     | bitwise_or
-
-compare_op_bitwise_or_pair[CmpopExprPair*]:
-    | eq_bitwise_or
-    | noteq_bitwise_or
-    | lte_bitwise_or
-    | lt_bitwise_or
-    | gte_bitwise_or
-    | gt_bitwise_or
-    | notin_bitwise_or
-    | in_bitwise_or
-    | isnot_bitwise_or
-    | is_bitwise_or
-
-eq_bitwise_or[CmpopExprPair*]: '==' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, Eq, a) }
-noteq_bitwise_or[CmpopExprPair*]:
-    | (tok='!=' { _PyPegen_check_barry_as_flufl(p, tok) ? NULL : tok}) a=bitwise_or {_PyPegen_cmpop_expr_pair(p, NotEq, a) }
-lte_bitwise_or[CmpopExprPair*]: '<=' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, LtE, a) }
-lt_bitwise_or[CmpopExprPair*]: '<' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, Lt, a) }
-gte_bitwise_or[CmpopExprPair*]: '>=' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, GtE, a) }
-gt_bitwise_or[CmpopExprPair*]: '>' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, Gt, a) }
-notin_bitwise_or[CmpopExprPair*]: 'not' 'in' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, NotIn, a) }
-in_bitwise_or[CmpopExprPair*]: 'in' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, In, a) }
-isnot_bitwise_or[CmpopExprPair*]: 'is' 'not' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, IsNot, a) }
-is_bitwise_or[CmpopExprPair*]: 'is' a=bitwise_or { _PyPegen_cmpop_expr_pair(p, Is, a) }
 
 # Bitwise operators
 # -----------------
@@ -841,6 +857,10 @@ atom[expr_ty]:
     | 'True' { _PyAST_Constant(Py_True, NULL, EXTRA) }
     | 'False' { _PyAST_Constant(Py_False, NULL, EXTRA) }
     | 'None' { _PyAST_Constant(Py_None, NULL, EXTRA) }
+    | a='$' {
+        p->subn > 0 ?
+        _PyAST_Template(EXTRA) :
+        RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "template not in righthand side of pipe operation") }
     | &(STRING|FSTRING_START) strings
     | NUMBER
     | &'(' (tuple | group | genexp)
@@ -1371,7 +1391,7 @@ invalid_for_stmt:
     | ['async'] a='for' star_targets 'in' star_expressions ':' NEWLINE !INDENT {
         RAISE_INDENTATION_ERROR("expected an indented block after 'for' statement on line %d", a->lineno) }
 invalid_def_raw:
-    | ['async'] a='def' NAME '(' [params] ')' ['->' expression] ':' NEWLINE !INDENT {
+    | ['async'] a="def" NAME '(' [params] ')' ['->' expression] ':' NEWLINE !INDENT {
         RAISE_INDENTATION_ERROR("expected an indented block after function definition on line %d", a->lineno) }
 invalid_class_def_raw:
     | 'class' NAME ['(' [arguments] ')'] NEWLINE { RAISE_SYNTAX_ERROR("expected ':'") }

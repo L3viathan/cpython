@@ -73,6 +73,7 @@ extern "C" {
 #define IMPORT_NAME                            108
 #define IMPORT_FROM                            109
 #define JUMP_FORWARD                           110
+#define IS_CONTAINS_OP                         112
 #define POP_JUMP_IF_FALSE                      114
 #define POP_JUMP_IF_TRUE                       115
 #define LOAD_GLOBAL                            116
@@ -158,6 +159,8 @@ extern "C" {
 #define LOAD_ZERO_SUPER_ATTR                   265
 #define STORE_FAST_MAYBE_NULL                  266
 #define LOAD_CLOSURE                           267
+#define PIPEARG_MARKER                         268
+#define PIPEARG_ENDMARKER                      269
 #define TO_BOOL_ALWAYS_TRUE                      7
 #define TO_BOOL_BOOL                             8
 #define TO_BOOL_INT                             10
@@ -205,28 +208,28 @@ extern "C" {
 #define COMPARE_OP_FLOAT                        86
 #define COMPARE_OP_INT                          88
 #define COMPARE_OP_STR                         111
-#define FOR_ITER_LIST                          112
-#define FOR_ITER_TUPLE                         113
-#define FOR_ITER_RANGE                         132
-#define FOR_ITER_GEN                           136
-#define CALL_BOUND_METHOD_EXACT_ARGS           148
-#define CALL_PY_EXACT_ARGS                     153
-#define CALL_PY_WITH_DEFAULTS                  154
-#define CALL_NO_KW_TYPE_1                      155
-#define CALL_NO_KW_STR_1                       159
-#define CALL_NO_KW_TUPLE_1                     160
-#define CALL_BUILTIN_CLASS                     161
-#define CALL_NO_KW_BUILTIN_O                   166
-#define CALL_NO_KW_BUILTIN_FAST                167
-#define CALL_BUILTIN_FAST_WITH_KEYWORDS        178
-#define CALL_NO_KW_LEN                         179
-#define CALL_NO_KW_ISINSTANCE                  180
-#define CALL_NO_KW_LIST_APPEND                 181
-#define CALL_NO_KW_METHOD_DESCRIPTOR_O         182
-#define CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS 183
-#define CALL_NO_KW_METHOD_DESCRIPTOR_NOARGS    184
-#define CALL_NO_KW_METHOD_DESCRIPTOR_FAST      185
-#define CALL_NO_KW_ALLOC_AND_ENTER_INIT        186
+#define FOR_ITER_LIST                          113
+#define FOR_ITER_TUPLE                         132
+#define FOR_ITER_RANGE                         136
+#define FOR_ITER_GEN                           148
+#define CALL_BOUND_METHOD_EXACT_ARGS           153
+#define CALL_PY_EXACT_ARGS                     154
+#define CALL_PY_WITH_DEFAULTS                  155
+#define CALL_NO_KW_TYPE_1                      159
+#define CALL_NO_KW_STR_1                       160
+#define CALL_NO_KW_TUPLE_1                     161
+#define CALL_BUILTIN_CLASS                     166
+#define CALL_NO_KW_BUILTIN_O                   167
+#define CALL_NO_KW_BUILTIN_FAST                178
+#define CALL_BUILTIN_FAST_WITH_KEYWORDS        179
+#define CALL_NO_KW_LEN                         180
+#define CALL_NO_KW_ISINSTANCE                  181
+#define CALL_NO_KW_LIST_APPEND                 182
+#define CALL_NO_KW_METHOD_DESCRIPTOR_O         183
+#define CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS 184
+#define CALL_NO_KW_METHOD_DESCRIPTOR_NOARGS    185
+#define CALL_NO_KW_METHOD_DESCRIPTOR_FAST      186
+#define CALL_NO_KW_ALLOC_AND_ENTER_INIT        187
 
 
 #ifdef __cplusplus

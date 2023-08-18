@@ -27,7 +27,6 @@ kwlist = [
     'break',
     'class',
     'continue',
-    'def',
     'del',
     'elif',
     'else',
@@ -36,10 +35,12 @@ kwlist = [
     'for',
     'from',
     'global',
+    'goto',
     'if',
     'import',
     'in',
     'is',
+    'label',
     'lambda',
     'nonlocal',
     'not',
@@ -56,6 +57,7 @@ kwlist = [
 softkwlist = [
     '_',
     'case',
+    'def',
     'match',
     'type'
 ]

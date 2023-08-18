@@ -282,6 +282,7 @@ class Reader:
             retval.co_code = self.r_object()
             retval.co_consts = self.r_object()
             retval.co_names = self.r_object()
+            if 0: retval.co_labelnames = self.r_object()
             retval.co_localsplusnames = self.r_object()
             retval.co_localspluskinds = self.r_object()
             retval.co_filename = self.r_object()

@@ -115,6 +115,8 @@ def_op('IMPORT_NAME', 108)     # Index in name list
 def_op('IMPORT_FROM', 109)     # Index in name list
 def_op('JUMP_FORWARD', 110)    # Number of words to skip
 
+def_op('IS_CONTAINS_OP', 112)
+
 def_op('POP_JUMP_IF_FALSE', 114)
 def_op('POP_JUMP_IF_TRUE', 115)
 def_op('LOAD_GLOBAL', 116)     # Index in name list
@@ -217,6 +219,9 @@ def_op('LOAD_ZERO_SUPER_ATTR', 265)
 
 def_op('STORE_FAST_MAYBE_NULL', 266)
 def_op('LOAD_CLOSURE', 267)
+
+def_op('PIPEARG_MARKER', 268)
+def_op('PIPEARG_ENDMARKER', 269)
 
 del def_op
 

@@ -383,7 +383,12 @@ validate_expr(struct validator *state, expr_ty exp, expr_context_ty ctx)
     case NamedExpr_kind:
         ret = validate_expr(state, exp->v.NamedExpr.value, Load);
         break;
+    case Composition_kind:
+        ret = validate_expr(state, exp->v.Composition.arg, Load) &&
+            validate_expr(state, exp->v.Composition.func, Load);
+        break;
     /* This last case doesn't have any checking. */
+    case Template_kind:
     case Name_kind:
         ret = 1;
         break;
@@ -925,6 +930,10 @@ validate_stmt(struct validator *state, stmt_ty stmt)
             (!stmt->v.AsyncFunctionDef.returns ||
              validate_expr(state, stmt->v.AsyncFunctionDef.returns, Load));
         break;
+    case Label_kind:
+        ret = validate_nonempty_seq(stmt->v.Label.names, "names", "Label");
+        break;
+    case Goto_kind:
     case Pass_kind:
     case Break_kind:
     case Continue_kind:

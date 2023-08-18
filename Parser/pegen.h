@@ -76,6 +76,7 @@ typedef struct {
     growable_comment_array type_ignore_comments;
     Token *known_err_token;
     int level;
+    int subn;
     int call_invalid_rules;
     int debug;
 } Parser;
@@ -278,15 +279,10 @@ INVALID_VERSION_CHECK(Parser *p, int version, char *msg, void *node)
         p->error_indicator = 1;  // Inline CHECK_CALL
         return NULL;
     }
-    if (p->feature_version < version) {
-        p->error_indicator = 1;
-        return RAISE_SYNTAX_ERROR("%s only supported in Python 3.%i and greater",
-                                  msg, version);
-    }
     return node;
 }
 
-#define CHECK_VERSION(type, version, msg, node) ((type) INVALID_VERSION_CHECK(p, version, msg, node))
+#define CHECK_VERSION(type, version, msg, node) ((type)INVALID_VERSION_CHECK(p, version, msg, node))
 
 arg_ty _PyPegen_add_type_comment_to_arg(Parser *, arg_ty, Token *);
 PyObject *_PyPegen_new_identifier(Parser *, const char *);

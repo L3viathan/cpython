@@ -52,6 +52,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Call_type);
     Py_CLEAR(state->ClassDef_type);
     Py_CLEAR(state->Compare_type);
+    Py_CLEAR(state->Composition_type);
     Py_CLEAR(state->Constant_type);
     Py_CLEAR(state->Continue_type);
     Py_CLEAR(state->Del_singleton);
@@ -74,6 +75,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->FunctionType_type);
     Py_CLEAR(state->GeneratorExp_type);
     Py_CLEAR(state->Global_type);
+    Py_CLEAR(state->Goto_type);
     Py_CLEAR(state->GtE_singleton);
     Py_CLEAR(state->GtE_type);
     Py_CLEAR(state->Gt_singleton);
@@ -87,6 +89,10 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Interactive_type);
     Py_CLEAR(state->Invert_singleton);
     Py_CLEAR(state->Invert_type);
+    Py_CLEAR(state->IsIn_singleton);
+    Py_CLEAR(state->IsIn_type);
+    Py_CLEAR(state->IsNotIn_singleton);
+    Py_CLEAR(state->IsNotIn_type);
     Py_CLEAR(state->IsNot_singleton);
     Py_CLEAR(state->IsNot_type);
     Py_CLEAR(state->Is_singleton);
@@ -94,6 +100,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->JoinedStr_type);
     Py_CLEAR(state->LShift_singleton);
     Py_CLEAR(state->LShift_type);
+    Py_CLEAR(state->Label_type);
     Py_CLEAR(state->Lambda_type);
     Py_CLEAR(state->ListComp_type);
     Py_CLEAR(state->List_type);
@@ -147,6 +154,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Sub_singleton);
     Py_CLEAR(state->Sub_type);
     Py_CLEAR(state->Subscript_type);
+    Py_CLEAR(state->Template_type);
     Py_CLEAR(state->TryStar_type);
     Py_CLEAR(state->Try_type);
     Py_CLEAR(state->Tuple_type);
@@ -531,6 +539,12 @@ static const char * const Global_fields[]={
 static const char * const Nonlocal_fields[]={
     "names",
 };
+static const char * const Label_fields[]={
+    "names",
+};
+static const char * const Goto_fields[]={
+    "name",
+};
 static const char * const Expr_fields[]={
     "value",
 };
@@ -557,6 +571,10 @@ static const char * const BinOp_fields[]={
 static const char * const UnaryOp_fields[]={
     "op",
     "operand",
+};
+static const char * const Composition_fields[]={
+    "arg",
+    "func",
 };
 static const char * const Lambda_fields[]={
     "args",
@@ -1192,6 +1210,8 @@ init_types(struct ast_state *state)
         "     | ImportFrom(identifier? module, alias* names, int? level)\n"
         "     | Global(identifier* names)\n"
         "     | Nonlocal(identifier* names)\n"
+        "     | Label(identifier* names)\n"
+        "     | Goto(identifier name)\n"
         "     | Expr(expr value)\n"
         "     | Pass\n"
         "     | Break\n"
@@ -1336,6 +1356,14 @@ init_types(struct ast_state *state)
                                      Nonlocal_fields, 1,
         "Nonlocal(identifier* names)");
     if (!state->Nonlocal_type) return 0;
+    state->Label_type = make_type(state, "Label", state->stmt_type,
+                                  Label_fields, 1,
+        "Label(identifier* names)");
+    if (!state->Label_type) return 0;
+    state->Goto_type = make_type(state, "Goto", state->stmt_type, Goto_fields,
+                                 1,
+        "Goto(identifier name)");
+    if (!state->Goto_type) return 0;
     state->Expr_type = make_type(state, "Expr", state->stmt_type, Expr_fields,
                                  1,
         "Expr(expr value)");
@@ -1355,6 +1383,7 @@ init_types(struct ast_state *state)
         "     | NamedExpr(expr target, expr value)\n"
         "     | BinOp(expr left, operator op, expr right)\n"
         "     | UnaryOp(unaryop op, expr operand)\n"
+        "     | Composition(expr arg, expr func)\n"
         "     | Lambda(arguments args, expr body)\n"
         "     | IfExp(expr test, expr body, expr orelse)\n"
         "     | Dict(expr* keys, expr* values)\n"
@@ -1371,6 +1400,7 @@ init_types(struct ast_state *state)
         "     | FormattedValue(expr value, int conversion, expr? format_spec)\n"
         "     | JoinedStr(expr* values)\n"
         "     | Constant(constant value, string? kind)\n"
+        "     | Template\n"
         "     | Attribute(expr value, identifier attr, expr_context ctx)\n"
         "     | Subscript(expr value, expr slice, expr_context ctx)\n"
         "     | Starred(expr value, expr_context ctx)\n"
@@ -1401,6 +1431,10 @@ init_types(struct ast_state *state)
                                     UnaryOp_fields, 2,
         "UnaryOp(unaryop op, expr operand)");
     if (!state->UnaryOp_type) return 0;
+    state->Composition_type = make_type(state, "Composition", state->expr_type,
+                                        Composition_fields, 2,
+        "Composition(expr arg, expr func)");
+    if (!state->Composition_type) return 0;
     state->Lambda_type = make_type(state, "Lambda", state->expr_type,
                                    Lambda_fields, 2,
         "Lambda(arguments args, expr body)");
@@ -1473,6 +1507,10 @@ init_types(struct ast_state *state)
     if (!state->Constant_type) return 0;
     if (PyObject_SetAttr(state->Constant_type, state->kind, Py_None) == -1)
         return 0;
+    state->Template_type = make_type(state, "Template", state->expr_type, NULL,
+                                     0,
+        "Template");
+    if (!state->Template_type) return 0;
     state->Attribute_type = make_type(state, "Attribute", state->expr_type,
                                       Attribute_fields, 3,
         "Attribute(expr value, identifier attr, expr_context ctx)");
@@ -1674,7 +1712,7 @@ init_types(struct ast_state *state)
                                               NULL, NULL);
     if (!state->USub_singleton) return 0;
     state->cmpop_type = make_type(state, "cmpop", state->AST_type, NULL, 0,
-        "cmpop = Eq | NotEq | Lt | LtE | Gt | GtE | Is | IsNot | In | NotIn");
+        "cmpop = Eq | NotEq | Lt | LtE | Gt | GtE | Is | IsNot | In | NotIn | IsIn | IsNotIn");
     if (!state->cmpop_type) return 0;
     if (!add_attributes(state, state->cmpop_type, NULL, 0)) return 0;
     state->Eq_type = make_type(state, "Eq", state->cmpop_type, NULL, 0,
@@ -1737,6 +1775,20 @@ init_types(struct ast_state *state)
     state->NotIn_singleton = PyType_GenericNew((PyTypeObject
                                                *)state->NotIn_type, NULL, NULL);
     if (!state->NotIn_singleton) return 0;
+    state->IsIn_type = make_type(state, "IsIn", state->cmpop_type, NULL, 0,
+        "IsIn");
+    if (!state->IsIn_type) return 0;
+    state->IsIn_singleton = PyType_GenericNew((PyTypeObject *)state->IsIn_type,
+                                              NULL, NULL);
+    if (!state->IsIn_singleton) return 0;
+    state->IsNotIn_type = make_type(state, "IsNotIn", state->cmpop_type, NULL,
+                                    0,
+        "IsNotIn");
+    if (!state->IsNotIn_type) return 0;
+    state->IsNotIn_singleton = PyType_GenericNew((PyTypeObject
+                                                 *)state->IsNotIn_type, NULL,
+                                                 NULL);
+    if (!state->IsNotIn_singleton) return 0;
     state->comprehension_type = make_type(state, "comprehension",
                                           state->AST_type,
                                           comprehension_fields, 4,
@@ -2612,6 +2664,45 @@ _PyAST_Nonlocal(asdl_identifier_seq * names, int lineno, int col_offset, int
 }
 
 stmt_ty
+_PyAST_Label(asdl_identifier_seq * names, int lineno, int col_offset, int
+             end_lineno, int end_col_offset, PyArena *arena)
+{
+    stmt_ty p;
+    p = (stmt_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Label_kind;
+    p->v.Label.names = names;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+stmt_ty
+_PyAST_Goto(identifier name, int lineno, int col_offset, int end_lineno, int
+            end_col_offset, PyArena *arena)
+{
+    stmt_ty p;
+    if (!name) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'name' is required for Goto");
+        return NULL;
+    }
+    p = (stmt_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Goto_kind;
+    p->v.Goto.name = name;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+stmt_ty
 _PyAST_Expr(expr_ty value, int lineno, int col_offset, int end_lineno, int
             end_col_offset, PyArena *arena)
 {
@@ -2787,6 +2878,34 @@ _PyAST_UnaryOp(unaryop_ty op, expr_ty operand, int lineno, int col_offset, int
     p->kind = UnaryOp_kind;
     p->v.UnaryOp.op = op;
     p->v.UnaryOp.operand = operand;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_Composition(expr_ty arg, expr_ty func, int lineno, int col_offset, int
+                   end_lineno, int end_col_offset, PyArena *arena)
+{
+    expr_ty p;
+    if (!arg) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'arg' is required for Composition");
+        return NULL;
+    }
+    if (!func) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'func' is required for Composition");
+        return NULL;
+    }
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Composition_kind;
+    p->v.Composition.arg = arg;
+    p->v.Composition.func = func;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -3162,6 +3281,22 @@ _PyAST_Constant(constant value, string kind, int lineno, int col_offset, int
     p->kind = Constant_kind;
     p->v.Constant.value = value;
     p->v.Constant.kind = kind;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_Template(int lineno, int col_offset, int end_lineno, int end_col_offset,
+                PyArena *arena)
+{
+    expr_ty p;
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = Template_kind;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -4402,6 +4537,27 @@ ast2obj_stmt(struct ast_state *state, void* _o)
             goto failed;
         Py_DECREF(value);
         break;
+    case Label_kind:
+        tp = (PyTypeObject *)state->Label_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_list(state, (asdl_seq*)o->v.Label.names,
+                             ast2obj_identifier);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->names, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Goto_kind:
+        tp = (PyTypeObject *)state->Goto_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_identifier(state, o->v.Goto.name);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->name, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
     case Expr_kind:
         tp = (PyTypeObject *)state->Expr_type;
         result = PyType_GenericNew(tp, NULL, NULL);
@@ -4534,6 +4690,21 @@ ast2obj_expr(struct ast_state *state, void* _o)
         value = ast2obj_expr(state, o->v.UnaryOp.operand);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->operand, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case Composition_kind:
+        tp = (PyTypeObject *)state->Composition_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(state, o->v.Composition.arg);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->arg, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_expr(state, o->v.Composition.func);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->func, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -4790,6 +4961,11 @@ ast2obj_expr(struct ast_state *state, void* _o)
             goto failed;
         Py_DECREF(value);
         break;
+    case Template_kind:
+        tp = (PyTypeObject *)state->Template_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        break;
     case Attribute_kind:
         tp = (PyTypeObject *)state->Attribute_type;
         result = PyType_GenericNew(tp, NULL, NULL);
@@ -5030,6 +5206,10 @@ PyObject* ast2obj_cmpop(struct ast_state *state, cmpop_ty o)
             return Py_NewRef(state->In_singleton);
         case NotIn:
             return Py_NewRef(state->NotIn_singleton);
+        case IsIn:
+            return Py_NewRef(state->IsIn_singleton);
+        case IsNotIn:
+            return Py_NewRef(state->IsNotIn_singleton);
     }
     Py_UNREACHABLE();
 }
@@ -8567,6 +8747,87 @@ obj2ast_stmt(struct ast_state *state, PyObject* obj, stmt_ty* out, PyArena*
         if (*out == NULL) goto failed;
         return 0;
     }
+    tp = state->Label_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        asdl_identifier_seq* names;
+
+        if (PyObject_GetOptionalAttr(obj, state->names, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return 1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "Label field \"names\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            names = _Py_asdl_identifier_seq_new(len, arena);
+            if (names == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                identifier val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'Label' node")) {
+                    goto failed;
+                }
+                res = obj2ast_identifier(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "Label field \"names\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(names, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_Label(names, lineno, col_offset, end_lineno,
+                            end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->Goto_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        identifier name;
+
+        if (PyObject_GetOptionalAttr(obj, state->name, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"name\" missing from Goto");
+            return 1;
+        }
+        else {
+            int res;
+            if (_Py_EnterRecursiveCall(" while traversing 'Goto' node")) {
+                goto failed;
+            }
+            res = obj2ast_identifier(state, tmp, &name, arena);
+            _Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_Goto(name, lineno, col_offset, end_lineno,
+                           end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
     tp = state->Expr_type;
     isinstance = PyObject_IsInstance(obj, tp);
     if (isinstance == -1) {
@@ -8953,6 +9214,54 @@ obj2ast_expr(struct ast_state *state, PyObject* obj, expr_ty* out, PyArena*
         }
         *out = _PyAST_UnaryOp(op, operand, lineno, col_offset, end_lineno,
                               end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->Composition_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        expr_ty arg;
+        expr_ty func;
+
+        if (PyObject_GetOptionalAttr(obj, state->arg, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"arg\" missing from Composition");
+            return 1;
+        }
+        else {
+            int res;
+            if (_Py_EnterRecursiveCall(" while traversing 'Composition' node")) {
+                goto failed;
+            }
+            res = obj2ast_expr(state, tmp, &arg, arena);
+            _Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->func, &tmp) < 0) {
+            return 1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"func\" missing from Composition");
+            return 1;
+        }
+        else {
+            int res;
+            if (_Py_EnterRecursiveCall(" while traversing 'Composition' node")) {
+                goto failed;
+            }
+            res = obj2ast_expr(state, tmp, &func, arena);
+            _Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_Composition(arg, func, lineno, col_offset, end_lineno,
+                                  end_col_offset, arena);
         if (*out == NULL) goto failed;
         return 0;
     }
@@ -9977,6 +10286,18 @@ obj2ast_expr(struct ast_state *state, PyObject* obj, expr_ty* out, PyArena*
         if (*out == NULL) goto failed;
         return 0;
     }
+    tp = state->Template_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+
+        *out = _PyAST_Template(lineno, col_offset, end_lineno, end_col_offset,
+                               arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
     tp = state->Attribute_type;
     isinstance = PyObject_IsInstance(obj, tp);
     if (isinstance == -1) {
@@ -10720,6 +11041,22 @@ obj2ast_cmpop(struct ast_state *state, PyObject* obj, cmpop_ty* out, PyArena*
     }
     if (isinstance) {
         *out = NotIn;
+        return 0;
+    }
+    isinstance = PyObject_IsInstance(obj, state->IsIn_type);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        *out = IsIn;
+        return 0;
+    }
+    isinstance = PyObject_IsInstance(obj, state->IsNotIn_type);
+    if (isinstance == -1) {
+        return 1;
+    }
+    if (isinstance) {
+        *out = IsNotIn;
         return 0;
     }
 
@@ -12751,6 +13088,12 @@ astmodule_exec(PyObject *m)
     if (PyModule_AddObjectRef(m, "Nonlocal", state->Nonlocal_type) < 0) {
         return -1;
     }
+    if (PyModule_AddObjectRef(m, "Label", state->Label_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "Goto", state->Goto_type) < 0) {
+        return -1;
+    }
     if (PyModule_AddObjectRef(m, "Expr", state->Expr_type) < 0) {
         return -1;
     }
@@ -12776,6 +13119,9 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "UnaryOp", state->UnaryOp_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "Composition", state->Composition_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "Lambda", state->Lambda_type) < 0) {
@@ -12826,6 +13172,9 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "Constant", state->Constant_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "Template", state->Template_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "Attribute", state->Attribute_type) < 0) {
@@ -12959,6 +13308,12 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "NotIn", state->NotIn_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "IsIn", state->IsIn_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "IsNotIn", state->IsNotIn_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "comprehension", state->comprehension_type) <

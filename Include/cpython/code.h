@@ -132,6 +132,7 @@ typedef struct {
     /* The hottest fields (in the eval loop) are grouped here at the top. */   \
     PyObject *co_consts;           /* list (constants used) */                 \
     PyObject *co_names;            /* list of strings (names used) */          \
+    PyObject *co_labelnames;       /* list of strings (label names used) */    \
     PyObject *co_exceptiontable;   /* Byte string encoding exception handling  \
                                       table */                                 \
     int co_flags;                  /* CO_..., see below */                     \
@@ -231,35 +232,35 @@ static inline int PyCode_GetFirstFree(PyCodeObject *op) {
 PyAPI_FUNC(PyCodeObject *) PyUnstable_Code_New(
         int, int, int, int, int, PyObject *, PyObject *,
         PyObject *, PyObject *, PyObject *, PyObject *,
-        PyObject *, PyObject *, PyObject *, int, PyObject *,
-        PyObject *);
+        PyObject *, PyObject *, PyObject *, PyObject *,
+        int, PyObject *, PyObject *);
 
 PyAPI_FUNC(PyCodeObject *) PyUnstable_Code_NewWithPosOnlyArgs(
         int, int, int, int, int, int, PyObject *, PyObject *,
         PyObject *, PyObject *, PyObject *, PyObject *,
-        PyObject *, PyObject *, PyObject *, int, PyObject *,
-        PyObject *);
+        PyObject *, PyObject *, PyObject *, PyObject *,
+        int, PyObject *, PyObject *);
         /* same as struct above */
 // Old names -- remove when this API changes:
 _Py_DEPRECATED_EXTERNALLY(3.12) static inline PyCodeObject *
 PyCode_New(
         int a, int b, int c, int d, int e, PyObject *f, PyObject *g,
         PyObject *h, PyObject *i, PyObject *j, PyObject *k,
-        PyObject *l, PyObject *m, PyObject *n, int o, PyObject *p,
-        PyObject *q)
+        PyObject *l, PyObject *m, PyObject *n, PyObject *o,
+        int p, PyObject *q, PyObject *r)
 {
     return PyUnstable_Code_New(
-        a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q);
+        a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r);
 }
 _Py_DEPRECATED_EXTERNALLY(3.12) static inline PyCodeObject *
 PyCode_NewWithPosOnlyArgs(
         int a, int poac, int b, int c, int d, int e, PyObject *f, PyObject *g,
         PyObject *h, PyObject *i, PyObject *j, PyObject *k,
-        PyObject *l, PyObject *m, PyObject *n, int o, PyObject *p,
-        PyObject *q)
+        PyObject *l, PyObject *m, PyObject *n, PyObject *o,
+        int p, PyObject *q, PyObject *r)
 {
     return PyUnstable_Code_NewWithPosOnlyArgs(
-        a, poac, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q);
+        a, poac, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r);
 }
 
 /* Creates a new empty code object with the specified source location. */

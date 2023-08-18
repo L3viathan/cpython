@@ -33,6 +33,8 @@ typedef struct _PyCfgInstruction {
     struct _PyCfgBasicblock *i_except; /* target block when exception is raised */
 } cfg_instr;
 
+#define MAX_TEMPLATE_NEST 256
+
 typedef struct _PyCfgBasicblock {
     /* Each basicblock in a compilation unit is linked via b_list in the
        reverse order that the block are allocated.  b_list points to the next
@@ -52,6 +54,10 @@ typedef struct _PyCfgBasicblock {
     int b_iused;
     /* length of instruction array (b_instr) */
     int b_ialloc;
+    /* index for b_template_subs */
+    int b_nsubs;
+    /* array to keep track of the template substitutions */
+    int b_template_subs[MAX_TEMPLATE_NEST];
     /* Used by add_checks_for_loads_of_unknown_variables */
     uint64_t b_unsafe_locals_mask;
     /* Number of predecessors that a block has. */
@@ -169,7 +175,7 @@ basicblock_addop(basicblock *b, int opcode, int oparg, location loc)
     assert(IS_WITHIN_OPCODE_RANGE(opcode));
     assert(!IS_ASSEMBLER_OPCODE(opcode));
     assert(OPCODE_HAS_ARG(opcode) || HAS_TARGET(opcode) || oparg == 0);
-    assert(0 <= oparg && oparg < (1 << 30));
+    assert(0 <= oparg && oparg < (1 << 30) || opcode == COPY && oparg == -1);
 
     int off = basicblock_next_instr(b);
     if (off < 0) {
@@ -749,6 +755,26 @@ calculate_stackdepth(cfg_builder *g)
         basicblock *next = b->b_next;
         for (int i = 0; i < b->b_iused; i++) {
             cfg_instr *instr = &b->b_instr[i];
+            if (instr->i_opcode == PIPEARG_MARKER) {
+                if (b->b_nsubs > 255) {
+                    PyErr_Format(PyExc_SyntaxError,
+                                 "max templates exceeded (%d > 256)",
+                                 b->b_nsubs + 1);
+                    goto error;
+                }
+                b->b_template_subs[b->b_nsubs++] = depth;
+                instr->i_opcode = NOP;
+                continue;
+            }
+            else if (instr->i_opcode == PIPEARG_ENDMARKER) {
+                --b->b_nsubs;
+                instr->i_opcode = NOP;
+                continue;
+            }
+            else if (instr->i_opcode == COPY && instr->i_oparg == -1) {
+                instr->i_oparg =
+                    depth - b->b_template_subs[b->b_nsubs - 1] + 1;
+            }
             int effect = PyCompile_OpcodeStackEffectWithJump(
                              instr->i_opcode, instr->i_oparg, 0);
             if (effect == PY_INVALID_STACK_EFFECT) {

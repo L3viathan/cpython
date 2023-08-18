@@ -339,6 +339,7 @@ struct _Py_global_strings {
         STRUCT_FOR_ID(co_flags)
         STRUCT_FOR_ID(co_freevars)
         STRUCT_FOR_ID(co_kwonlyargcount)
+        STRUCT_FOR_ID(co_labelnames)
         STRUCT_FOR_ID(co_linetable)
         STRUCT_FOR_ID(co_name)
         STRUCT_FOR_ID(co_names)

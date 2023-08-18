@@ -791,6 +791,7 @@ _PyPegen_Parser_New(struct tok_state *tok, int start_rule, int flags,
     p->feature_version = feature_version;
     p->known_err_token = NULL;
     p->level = 0;
+    p->subn = 0;
     p->call_invalid_rules = 0;
 #ifdef Py_DEBUG
     p->debug = _Py_GetConfig()->parser_debug;

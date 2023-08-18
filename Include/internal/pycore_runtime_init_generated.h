@@ -845,6 +845,7 @@ extern "C" {
     INIT_ID(co_flags), \
     INIT_ID(co_freevars), \
     INIT_ID(co_kwonlyargcount), \
+    INIT_ID(co_labelnames), \
     INIT_ID(co_linetable), \
     INIT_ID(co_name), \
     INIT_ID(co_names), \

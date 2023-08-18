@@ -244,7 +244,7 @@ _PyCompile_InstructionSequence_Addop(instr_sequence *seq, int opcode, int oparg,
     assert(0 <= opcode && opcode <= MAX_OPCODE);
     assert(IS_WITHIN_OPCODE_RANGE(opcode));
     assert(OPCODE_HAS_ARG(opcode) || HAS_TARGET(opcode) || oparg == 0);
-    assert(0 <= oparg && oparg < (1 << 30));
+    assert(0 <= oparg && oparg < (1 << 30) || opcode == COPY && oparg == -1);
 
     int idx = instr_sequence_next_inst(seq);
     RETURN_IF_ERROR(idx);
@@ -352,6 +352,7 @@ error:
 /* The following items change on entry and exit of code blocks.
    They must be saved and restored when returning to a block.
 */
+
 struct compiler_unit {
     PySTEntryObject *u_ste;
 
@@ -666,6 +667,7 @@ compiler_unit_free(struct compiler_unit *u)
     Py_CLEAR(u->u_metadata.u_qualname);
     Py_CLEAR(u->u_metadata.u_consts);
     Py_CLEAR(u->u_metadata.u_names);
+    Py_CLEAR(u->u_metadata.u_labelnames);
     Py_CLEAR(u->u_metadata.u_varnames);
     Py_CLEAR(u->u_metadata.u_freevars);
     Py_CLEAR(u->u_metadata.u_cellvars);
@@ -813,6 +815,8 @@ stack_effect(int opcode, int oparg, int jump)
         case POP_BLOCK:
         case JUMP:
         case JUMP_NO_INTERRUPT:
+        case PIPEARG_MARKER:
+        case PIPEARG_ENDMARKER:
             return 0;
 
         case EXIT_INIT_CHECK:
@@ -943,6 +947,53 @@ dict_add_o(PyObject *dict, PyObject *o)
     }
     else
         arg = PyLong_AsLong(v);
+    return arg;
+}
+
+static int
+compiler_add_label(struct compiler *c, PyObject *o, int is_label)
+{
+    PyObject *dict = c->u->u_metadata.u_labelnames;
+    PyObject *v;
+    int arg;
+
+    v = PyDict_GetItemWithError(dict, o);
+    if (!v) {
+        if (PyErr_Occurred()) {
+            return ERROR;
+        }
+        NEW_JUMP_TARGET_LABEL(c, jump_label);
+        arg = jump_label.id;
+        if (arg > (INT_MAX >> 1)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "max number of labels reached");
+            return ERROR;
+        }
+        v = PyLong_FromLong((arg << 1) | is_label);
+        if (!v) {
+            return ERROR;
+        }
+        if (PyDict_SetItem(dict, o, v) < 0) {
+            Py_DECREF(v);
+            return ERROR;
+        }
+        Py_DECREF(v);
+    }
+    else {
+        arg = (int)_PyLong_CompactValue((const PyLongObject *)v);
+        if (is_label && (arg & 1) == 0) {
+            v = PyLong_FromLong(arg | 1);
+            if (!v) {
+                return ERROR;
+            }
+            if (PyDict_SetItem(dict, o, v) < 0) {
+                Py_DECREF(v);
+                return ERROR;
+            }
+            Py_DECREF(v);
+        }
+        arg >>= 1;
+    }
     return arg;
 }
 
@@ -1336,6 +1387,11 @@ compiler_enter_scope(struct compiler *c, identifier name,
     }
     u->u_metadata.u_names = PyDict_New();
     if (!u->u_metadata.u_names) {
+        compiler_unit_free(u);
+        return ERROR;
+    }
+    u->u_metadata.u_labelnames = PyDict_New();
+    if (!u->u_metadata.u_labelnames) {
         compiler_unit_free(u);
         return ERROR;
     }
@@ -2849,6 +2905,12 @@ static int compiler_addcompare(struct compiler *c, location loc,
     case NotIn:
         ADDOP_I(c, loc, CONTAINS_OP, 1);
         return SUCCESS;
+    case IsIn:
+        ADDOP_I(c, loc, IS_CONTAINS_OP, 0);
+        return SUCCESS;
+    case IsNotIn:
+        ADDOP_I(c, loc, IS_CONTAINS_OP, 1);
+        return SUCCESS;
     default:
         Py_UNREACHABLE();
     }
@@ -3959,6 +4021,38 @@ compiler_assert(struct compiler *c, stmt_ty s)
 }
 
 static int
+compiler_goto(struct compiler *c, stmt_ty s)
+{
+    jump_target_label to;
+
+    to.id = compiler_add_label(c, s->v.Goto.name, 0);
+    if (to.id < 0) {
+        return ERROR;
+    }
+
+    ADDOP_JUMP(c, LOC(s), JUMP, to);
+    return SUCCESS;
+}
+
+static int
+compiler_label(struct compiler *c, stmt_ty s)
+{
+    jump_target_label from;
+    Py_ssize_t i;
+
+    for (i = 0; i < asdl_seq_LEN(s->v.Label.names); ++i) {
+        from.id = compiler_add_label(c, asdl_seq_GET(s->v.Label.names, i), 1);
+        if (from.id < 0) {
+            return ERROR;
+        }
+
+        USE_LABEL(c, from);
+    }
+
+    return SUCCESS;
+}
+
+static int
 compiler_stmt_expr(struct compiler *c, location loc, expr_ty value)
 {
     if (c->c_interactive && c->c_nestlevel <= 1) {
@@ -4072,6 +4166,10 @@ compiler_visit_stmt(struct compiler *c, stmt_ty s)
         return compiler_async_with(c, s, 0);
     case AsyncFor_kind:
         return compiler_async_for(c, s);
+    case Goto_kind:
+        return compiler_goto(c, s);
+    case Label_kind:
+        return compiler_label(c, s);
     }
 
     return SUCCESS;
@@ -6069,6 +6167,26 @@ compiler_with(struct compiler *c, stmt_ty s, int pos)
 }
 
 static int
+compiler_composition(struct compiler *c, expr_ty e)
+{
+    VISIT(c, expr, e->v.Composition.arg);
+    location loc = LOC(e);
+    ADDOP(c, loc, PIPEARG_MARKER); /* for the stack size calculation later */
+    VISIT(c, expr, e->v.Composition.func);
+    ADDOP(c, loc, PIPEARG_ENDMARKER);
+    ADDOP_I(c, loc, SWAP, 2); /* swap arg and result of func */
+    ADDOP(c, loc, POP_TOP); /* pop arg */
+    return SUCCESS;
+}
+
+static int
+compiler_template(struct compiler *c, expr_ty e)
+{
+    ADDOP_I(c, LOC(e), COPY, -1);
+    return SUCCESS;
+}
+
+static int
 compiler_visit_expr1(struct compiler *c, expr_ty e)
 {
     location loc = LOC(e);
@@ -6223,6 +6341,10 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
         return compiler_list(c, e);
     case Tuple_kind:
         return compiler_tuple(c, e);
+    case Composition_kind:
+        return compiler_composition(c, e);
+    case Template_kind:
+        return compiler_template(c, e);
     }
     return SUCCESS;
 }
@@ -7501,6 +7623,23 @@ add_return_at_end(struct compiler *c, int addNone)
     return SUCCESS;
 }
 
+static int
+verify_code_gotos(PyObject *dict)
+{
+    PyObject *k, *v;
+    Py_ssize_t pos = 0;
+
+    while (PyDict_Next(dict, &pos, &k, &v)) {
+        if ((_PyLong_CompactValue((const PyLongObject *)v) & 1) == 0) {
+            PyErr_Format(PyExc_ValueError,
+                         "label %R not defined",
+                         k);
+            return ERROR;
+        }
+    }
+    return SUCCESS;
+}
+
 static PyCodeObject *
 optimize_and_assemble_code_unit(struct compiler_unit *u, PyObject *const_cache,
                    int code_flags, PyObject *filename)
@@ -7512,6 +7651,9 @@ optimize_and_assemble_code_unit(struct compiler_unit *u, PyObject *const_cache,
     PyCodeObject *co = NULL;
     PyObject *consts = consts_dict_keys_inorder(u->u_metadata.u_consts);
     if (consts == NULL) {
+        goto error;
+    }
+    if (verify_code_gotos(u->u_metadata.u_labelnames) < 0) {
         goto error;
     }
     g = instr_sequence_to_cfg(&u->u_instr_sequence);
@@ -7873,6 +8015,7 @@ _PyCompile_CodeGen(PyObject *ast, PyObject *filename, PyCompilerFlags *pflags,
     SET_MATADATA_ITEM("qualname", umd->u_qualname);
     SET_MATADATA_ITEM("consts", umd->u_consts);
     SET_MATADATA_ITEM("names", umd->u_names);
+    SET_MATADATA_ITEM("labelnames", umd->u_labelnames);
     SET_MATADATA_ITEM("varnames", umd->u_varnames);
     SET_MATADATA_ITEM("cellvars", umd->u_cellvars);
     SET_MATADATA_ITEM("freevars", umd->u_freevars);

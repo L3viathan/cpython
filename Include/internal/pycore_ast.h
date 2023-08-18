@@ -29,7 +29,7 @@ typedef enum _operator { Add=1, Sub=2, Mult=3, MatMult=4, Div=5, Mod=6, Pow=7,
 typedef enum _unaryop { Invert=1, Not=2, UAdd=3, USub=4 } unaryop_ty;
 
 typedef enum _cmpop { Eq=1, NotEq=2, Lt=3, LtE=4, Gt=5, GtE=6, Is=7, IsNot=8,
-                      In=9, NotIn=10 } cmpop_ty;
+                      In=9, NotIn=10, IsIn=11, IsNotIn=12 } cmpop_ty;
 
 typedef struct _comprehension *comprehension_ty;
 
@@ -191,8 +191,8 @@ enum _stmt_kind {FunctionDef_kind=1, AsyncFunctionDef_kind=2, ClassDef_kind=3,
                   With_kind=14, AsyncWith_kind=15, Match_kind=16,
                   Raise_kind=17, Try_kind=18, TryStar_kind=19, Assert_kind=20,
                   Import_kind=21, ImportFrom_kind=22, Global_kind=23,
-                  Nonlocal_kind=24, Expr_kind=25, Pass_kind=26, Break_kind=27,
-                  Continue_kind=28};
+                  Nonlocal_kind=24, Label_kind=25, Goto_kind=26, Expr_kind=27,
+                  Pass_kind=28, Break_kind=29, Continue_kind=30};
 struct _stmt {
     enum _stmt_kind kind;
     union {
@@ -346,6 +346,14 @@ struct _stmt {
         } Nonlocal;
 
         struct {
+            asdl_identifier_seq *names;
+        } Label;
+
+        struct {
+            identifier name;
+        } Goto;
+
+        struct {
             expr_ty value;
         } Expr;
 
@@ -357,13 +365,14 @@ struct _stmt {
 };
 
 enum _expr_kind {BoolOp_kind=1, NamedExpr_kind=2, BinOp_kind=3, UnaryOp_kind=4,
-                  Lambda_kind=5, IfExp_kind=6, Dict_kind=7, Set_kind=8,
-                  ListComp_kind=9, SetComp_kind=10, DictComp_kind=11,
-                  GeneratorExp_kind=12, Await_kind=13, Yield_kind=14,
-                  YieldFrom_kind=15, Compare_kind=16, Call_kind=17,
-                  FormattedValue_kind=18, JoinedStr_kind=19, Constant_kind=20,
-                  Attribute_kind=21, Subscript_kind=22, Starred_kind=23,
-                  Name_kind=24, List_kind=25, Tuple_kind=26, Slice_kind=27};
+                  Composition_kind=5, Lambda_kind=6, IfExp_kind=7, Dict_kind=8,
+                  Set_kind=9, ListComp_kind=10, SetComp_kind=11,
+                  DictComp_kind=12, GeneratorExp_kind=13, Await_kind=14,
+                  Yield_kind=15, YieldFrom_kind=16, Compare_kind=17,
+                  Call_kind=18, FormattedValue_kind=19, JoinedStr_kind=20,
+                  Constant_kind=21, Template_kind=22, Attribute_kind=23,
+                  Subscript_kind=24, Starred_kind=25, Name_kind=26,
+                  List_kind=27, Tuple_kind=28, Slice_kind=29};
 struct _expr {
     enum _expr_kind kind;
     union {
@@ -387,6 +396,11 @@ struct _expr {
             unaryop_ty op;
             expr_ty operand;
         } UnaryOp;
+
+        struct {
+            expr_ty arg;
+            expr_ty func;
+        } Composition;
 
         struct {
             arguments_ty args;
@@ -759,6 +773,10 @@ stmt_ty _PyAST_Global(asdl_identifier_seq * names, int lineno, int col_offset,
 stmt_ty _PyAST_Nonlocal(asdl_identifier_seq * names, int lineno, int
                         col_offset, int end_lineno, int end_col_offset, PyArena
                         *arena);
+stmt_ty _PyAST_Label(asdl_identifier_seq * names, int lineno, int col_offset,
+                     int end_lineno, int end_col_offset, PyArena *arena);
+stmt_ty _PyAST_Goto(identifier name, int lineno, int col_offset, int
+                    end_lineno, int end_col_offset, PyArena *arena);
 stmt_ty _PyAST_Expr(expr_ty value, int lineno, int col_offset, int end_lineno,
                     int end_col_offset, PyArena *arena);
 stmt_ty _PyAST_Pass(int lineno, int col_offset, int end_lineno, int
@@ -779,6 +797,9 @@ expr_ty _PyAST_BinOp(expr_ty left, operator_ty op, expr_ty right, int lineno,
 expr_ty _PyAST_UnaryOp(unaryop_ty op, expr_ty operand, int lineno, int
                        col_offset, int end_lineno, int end_col_offset, PyArena
                        *arena);
+expr_ty _PyAST_Composition(expr_ty arg, expr_ty func, int lineno, int
+                           col_offset, int end_lineno, int end_col_offset,
+                           PyArena *arena);
 expr_ty _PyAST_Lambda(arguments_ty args, expr_ty body, int lineno, int
                       col_offset, int end_lineno, int end_col_offset, PyArena
                       *arena);
@@ -822,6 +843,8 @@ expr_ty _PyAST_JoinedStr(asdl_expr_seq * values, int lineno, int col_offset,
 expr_ty _PyAST_Constant(constant value, string kind, int lineno, int
                         col_offset, int end_lineno, int end_col_offset, PyArena
                         *arena);
+expr_ty _PyAST_Template(int lineno, int col_offset, int end_lineno, int
+                        end_col_offset, PyArena *arena);
 expr_ty _PyAST_Attribute(expr_ty value, identifier attr, expr_context_ty ctx,
                          int lineno, int col_offset, int end_lineno, int
                          end_col_offset, PyArena *arena);

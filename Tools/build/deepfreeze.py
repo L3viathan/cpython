@@ -12,6 +12,7 @@ import collections
 import contextlib
 import os
 import re
+import sys
 import time
 import types
 from typing import Dict, FrozenSet, TextIO, Tuple
@@ -238,6 +239,10 @@ class Printer:
         # (but see below).
         co_consts = self.generate(name + "_consts", code.co_consts)
         co_names = self.generate(name + "_names", code.co_names)
+        co_labelnames = self.generate(
+            name + "_labelnames",
+            () if 1 else code.co_labelnames
+        )
         co_filename = self.generate(name + "_filename", code.co_filename)
         co_name = self.generate(name + "_name", code.co_name)
         co_qualname = self.generate(name + "_qualname", code.co_qualname)
@@ -261,6 +266,7 @@ class Printer:
             # otherwise MSVC doesn't like it.
             self.write(f".co_consts = {co_consts},")
             self.write(f".co_names = {co_names},")
+            self.write(f".co_labelnames = {co_labelnames},")
             self.write(f".co_exceptiontable = {co_exceptiontable},")
             self.field(code, "co_flags")
             self.field(code, "co_argcount")
